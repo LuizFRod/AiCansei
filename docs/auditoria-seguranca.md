@@ -62,9 +62,9 @@ Sem autenticação, sem Zod, sem limites de tamanho; `nome/mensagem` entram crus
 **Recomendação:** schema Zod (tamanhos máximos, e-mail válido), sanitizar CRLF antes de logar.
 
 ### M-4 · Segredo de produção fraco no ambiente local
-**Arquivo:** `.env` (`NEXTAUTH_SECRET="[SEGREDO-REMOVIDO]"`)
+**Arquivo:** `.env` (`NEXTAUTH_SECRET` com string previsível — valor omitido por segurança)
 
-A Vercel está com segredo forte gerado ✓, mas o `.env` local usa string previsível. Se alguém assinar tokens localmente com esse segredo… risco baixo (dev), porém hábito ruim.
+A Vercel está com segredo forte gerado ✓, mas o `.env` local usava string previsível (já rotacionada). Se alguém assinar tokens localmente com esse segredo… risco baixo (dev), porém hábito ruim.
 
 **Recomendação:** gerar segredo forte também local (`openssl rand -base64 32`) e nunca reaproveitar entre ambientes.
 
