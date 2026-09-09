@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DOADOR
+  RECEPTOR
+  ADMIN
+}
+
+enum Category {
+  MOVEIS
+  ROUPAS
+  ELETRONICOS
+  LIVROS
+  BRINQUEDOS
+  ESPORTES
+  CASA
+  OUTROS
+}
+
+enum Condition {
+  NOVO
+  OTIMO
+  BOM
+  REGULAR
+}
+
+enum Availability {
+  RETIRADA
+  ENTREGA
+  AMBAS
+}
+
+enum AnnouncementStatus {
+  PENDENTE
+  ATIVO
+  DOADO
+  REJEITADO
+  EXPIRADO
+}
+
+enum ManifestationStatus {
+  PENDENTE
+  ACEITA
+  RECUSADA
+  CONCLUIDA
+}
+
+enum NotificationType {
+  INTERESSE
+  AVALIACAO
+  MODERACAO
+  SISTEMA
+}
+
+model User {
+  id         String    @id @default(cuid())
+  name       String
+  email      String    @unique
+  password   String?
+  phone      String?
+  address    String?
+  city       String?
+  state      String?
+  photo      String?
+  role       Role      @default(RECEPTOR)
+  reputation Float     @default(0)
+  reviewCount Int      @default(0)
+  latitude   Float?
+  longitude  Float?
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  announcements          Announcement[]
+  recipientAnnouncements Announcement[] @relation("RecipientAnnouncements")
+  manifestations         Manifestation[]
+  favorites              Favorite[]
+  notifications          Notification[]
+  givenReviews           Review[] @relation("Reviewer")
+  receivedReviews        Review[] @relation("Reviewed")
+
+  @@index([email])
+  @@index([role])
+  @@index([city, state])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Announcement {
+  id          String             @id @default(cuid())
+  title       String
+  description String
+  category    Category
+  condition   Condition
+  availability Availability     @default(AMBAS)
+  city        String?
+  state       String?
+  address     String?
+  latitude    Float?
+  longitude   Float?
+  status      AnnouncementStatus @default(PENDENTE)
+  donorId     String
+  recipientId String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  donor          User           @relation(fields: [donorId], references: [id], onDelete: Cascade)
+  recipient      User?          @relation("RecipientAnnouncements", fields: [recipientId], references: [id])
+  photos         Photo[]
+  manifestations Manifestation[]
+  favorites      Favorite[]
+
+  @@index([donorId])
+  @@index([category])
+  @@index([status])
+  @@index([city, state])
+  @@index([createdAt])
+}
+
+model Photo {
+  id             String      @id @default(cuid())
+  url            String
+  sortOrder      Int         @default(0)
+  announcementId String
+  createdAt      DateTime    @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@index([announcementId])
+}
+
+model Manifestation {
+  id             String              @id @default(cuid())
+  message        String?
+  status         ManifestationStatus @default(PENDENTE)
+  userId         String
+  announcementId String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, announcementId])
+  @@index([announcementId])
+  @@index([userId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  rating     Int
+  comment    String?
+  reviewerId String
+  reviewedId String
+  donationId String?
+  createdAt  DateTime @default(now())
+
+  reviewer User @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewed User @relation("Reviewed", fields: [reviewedId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewerId, reviewedId, donationId])
+  @@index([reviewedId])
+}
+
+model Favorite {
+  id             String   @id @default(cuid())
+  userId         String
+  announcementId String
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, announcementId])
+  @@index([announcementId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  title     String
+  message   String
+  type      NotificationType @default(SISTEMA)
+  read      Boolean          @default(false)
+  userId    String
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
