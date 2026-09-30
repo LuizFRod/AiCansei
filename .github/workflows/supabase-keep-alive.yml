@@ -1,0 +1,51 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # 09:17 em Sao Paulo (12:17 UTC), diariamente.
+    - cron: '17 12 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: supabase-keep-alive
+  cancel-in-progress: false
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Check database connection
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_KEEPALIVE_DATABASE_URL }}
+          PGCONNECT_TIMEOUT: '15'
+          PGSSLMODE: require
+          PGOPTIONS: '-c statement_timeout=15000 -c default_transaction_read_only=on'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$DATABASE_URL" ]; then
+            echo '::error::Configure the SUPABASE_KEEPALIVE_DATABASE_URL repository secret.'
+            exit 1
+          fi
+          # PGDATABASE avoids exposing the connection string in process arguments.
+          export PGDATABASE="$DATABASE_URL"
+          unset DATABASE_URL
+          for attempt in 1 2 3; do
+            if psql -X -w -v ON_ERROR_STOP=1 -tAc 'SELECT 1' >/dev/null 2>&1; then
+              echo 'Supabase database connection succeeded.'
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep 10; fi
+          done
+          echo '::error::Supabase connection failed after three attempts. Check the secret and project status.'
+          exit 1
