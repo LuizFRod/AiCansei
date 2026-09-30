@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌱 AiCansei
 
-## Getting Started
+Plataforma de doação de itens usados. Doe o que não usa mais e encontre coisas incríveis!
 
-First, run the development server:
+## Tech Stack
+
+- **Frontend:** Next.js 16 (App Router) + Tailwind CSS v4
+- **Backend:** Next.js API Routes
+- **Database:** PostgreSQL (Supabase) + Prisma ORM
+- **Auth:** NextAuth v5 (Credentials + Google OAuth)
+- **Storage:** Cloudinary (imagens)
+- **Deploy:** Vercel (app) + Supabase (banco)
+
+## Setup
 
 ```bash
+# Instalar dependências
+npm install
+
+# Configurar variáveis de ambiente
+cp .env.example .env.local
+# Editar .env.local com suas credenciais
+
+# Gerar Prisma Client
+npx prisma generate
+
+# Criar tabelas no banco
+npx prisma db push
+
+# Popular com dados de teste
+npx prisma db seed
+
+# Iniciar desenvolvimento
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Usuários de teste
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Email | Senha | Papel |
+|-------|-------|-------|
+| admin@aicansai.com | 123456 | Admin |
+| maria@email.com | 123456 | Doador |
+| joao@email.com | 123456 | Doador |
+| ana@email.com | 123456 | Receptor |
+| pedro@email.com | 123456 | Receptor |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Funcionalidades
 
-## Learn More
+- **CU-01:** Cadastro de usuários (credenciais + Google)
+- **CU-02:** Criar e gerenciar anúncios de doação
+- **CU-03:** Busca e filtros avançados
+- **CU-04:** Manifestação de interesse
+- **CU-05:** Avaliações (1-5 estrelas)
+- **CU-06:** Painel admin (moderação + gestão)
+- **CU-07:** Fluxo completo de doação
 
-To learn more about Next.js, take a look at the following resources:
+## Comandos
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run dev          # Desenvolvimento
+npm run build        # Build de produção
+npm run start        # Iniciar produção
+npm test             # Rodar testes
+npx prisma studio    # Abrir Prisma Studio
+npx prisma db seed   # Popular banco
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy
 
-## Deploy on Vercel
+### Supabase (Banco de Dados)
+1. Criar projeto no [Supabase](https://supabase.com)
+2. Copiar connection string (Transaction mode)
+3. Rodar `npx prisma db push` e `npx prisma db seed`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Vercel (Aplicação)
+1. Conectar repositório GitHub no [Vercel](https://vercel.com)
+2. Configurar variáveis de ambiente
+3. Deploy automático a cada push
