@@ -47,10 +47,8 @@ jobs:
           esac
           error_file=$(mktemp)
           trap 'rm -f "$error_file"' EXIT
-          export PGDATABASE="$DATABASE_URL"
-          unset DATABASE_URL
           for attempt in 1 2 3; do
-            if psql -X -w -v ON_ERROR_STOP=1 -tAc 'SELECT 1' >/dev/null 2>"$error_file"; then
+            if psql --dbname="$DATABASE_URL" -X -w -v ON_ERROR_STOP=1 -tAc 'SELECT 1' >/dev/null 2>"$error_file"; then
               echo 'Supabase database connection succeeded.'
               exit 0
             fi
