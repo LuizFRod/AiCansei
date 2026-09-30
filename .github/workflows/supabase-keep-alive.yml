@@ -37,15 +37,38 @@ jobs:
             echo '::error::Configure the SUPABASE_KEEPALIVE_DATABASE_URL repository secret.'
             exit 1
           fi
-          # PGDATABASE avoids exposing the connection string in process arguments.
+          if [[ "$DATABASE_URL" == *$'\n'* || "$DATABASE_URL" == *$'\r'* || "$DATABASE_URL" == *' '* || "$DATABASE_URL" == *'"'* ]]; then
+            echo '::error::A URL contem espacos, aspas ou quebras de linha. Cole apenas a conexao em uma unica linha.'
+            exit 1
+          fi
+          case "$DATABASE_URL" in
+            postgresql://*|postgres://*) ;;
+            *) echo '::error::O segredo deve comecar com postgresql://, sem DIRECT_URL= e sem aspas.'; exit 1 ;;
+          esac
+          error_file=$(mktemp)
+          trap 'rm -f "$error_file"' EXIT
           export PGDATABASE="$DATABASE_URL"
           unset DATABASE_URL
           for attempt in 1 2 3; do
-            if psql -X -w -v ON_ERROR_STOP=1 -tAc 'SELECT 1' >/dev/null 2>&1; then
+            if psql -X -w -v ON_ERROR_STOP=1 -tAc 'SELECT 1' >/dev/null 2>"$error_file"; then
               echo 'Supabase database connection succeeded.'
               exit 0
             fi
             if [ "$attempt" -lt 3 ]; then sleep 10; fi
           done
-          echo '::error::Supabase connection failed after three attempts. Check the secret and project status.'
+          if grep -Eqi 'password authentication failed|authentication failed|wrong password' "$error_file"; then
+            echo '::error::Autenticacao recusada: confira usuario e senha na URL.'
+          elif grep -Eqi 'could not translate host name|Name or service not known' "$error_file"; then
+            echo '::error::Servidor nao encontrado: confira o endereco na URL.'
+          elif grep -Eqi 'unsupported|invalid URI|invalid connection option|invalid percent-encoded|invalid integer|missing.*separator' "$error_file"; then
+            echo '::error::Formato da URL ou parametro de conexao invalido.'
+          elif grep -Eqi 'Tenant or user not found' "$error_file"; then
+            echo '::error::Projeto ou usuario nao encontrado. Confira a URL do Session pooler.'
+          elif grep -Eqi 'timeout|timed out|Network is unreachable|Connection refused' "$error_file"; then
+            echo '::error::Servidor indisponivel: confira o status do projeto e as restricoes de rede.'
+          elif grep -Eqi 'SSL|certificate' "$error_file"; then
+            echo '::error::Falha na conexao criptografada com o banco.'
+          else
+            echo '::error::Falha nao classificada. Credenciais e erro bruto nao foram publicados.'
+          fi
           exit 1
