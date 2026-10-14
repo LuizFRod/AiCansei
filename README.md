@@ -46,13 +46,13 @@ npm run dev
 
 ## Funcionalidades
 
-- **CU-01:** Cadastro de usuários (credenciais + Google)
-- **CU-02:** Criar e gerenciar anúncios de doação
-- **CU-03:** Busca e filtros avançados
-- **CU-04:** Manifestação de interesse
-- **CU-05:** Avaliações (1-5 estrelas)
-- **CU-06:** Painel admin (moderação + gestão)
-- **CU-07:** Fluxo completo de doação
+- **01:** Cadastro de usuários (credenciais)
+- **02:** Criar e gerenciar anúncios de doação
+- **03:** Busca e filtros avançados
+- **04:** Manifestação de interesse
+- **05:** Avaliações (1-5 estrelas)
+- **06:** Painel admin (moderação + gestão)
+- **07:** Fluxo completo de doação
 
 ## Comandos
 
