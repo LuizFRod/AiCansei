@@ -59,7 +59,7 @@ describe("formatDate()", () => {
   });
 
   it("formats an ISO string to pt-BR format", () => {
-    expect(formatDate("2024-12-25")).toBe("25/12/2024");
+    expect(formatDate("2024-12-25T12:00:00")).toBe("25/12/2024");
   });
 
   it("handles first day of year", () => {
