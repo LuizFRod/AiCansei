@@ -3,6 +3,9 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+// Timestamp realista: N horas atrás
+const hoursAgo = (h: number) => new Date(Date.now() - h * 60 * 60 * 1000);
+
 async function main() {
   console.log("🌱 Seeding database...");
 
@@ -91,6 +94,7 @@ async function main() {
   // ── Announcements ──
   const anuncio1 = await prisma.announcement.create({
     data: {
+      createdAt: hoursAgo(3),
       title: "Sofá 3 Lugares Azul",
       description: "Sofá em ótimo estado, usado por 2 anos. Motivo da doação: me mudei para apartamento menor e não cabe. Entrega combinada ou retirada no local.",
       category: Category.MOVEIS,
@@ -106,6 +110,7 @@ async function main() {
 
   const anuncio2 = await prisma.announcement.create({
     data: {
+      createdAt: hoursAgo(9),
       title: "Cadeira de Escritório Ergonômica",
       description: "Cadeira ergonômica preta, ajustável, com apoio de braço. Usada por 1 ano. Funciona perfeitamente, comprei uma nova.",
       category: Category.MOVEIS,
@@ -121,6 +126,7 @@ async function main() {
 
   const anuncio3 = await prisma.announcement.create({
     data: {
+      createdAt: hoursAgo(22),
       title: "Notebook Dell Inspiron 15",
       description: "Notebook Dell Inspiron 15, 8GB RAM, 256GB SSD. Funciona bem, mas precisei de um mais potente para trabalho. Incluo carregador.",
       category: Category.ELETRONICOS,
@@ -136,6 +142,7 @@ async function main() {
 
   const anuncio4 = await prisma.announcement.create({
     data: {
+      createdAt: hoursAgo(30),
       title: "Bicicleta Aro 26",
       description: "Bicicleta mountain bike aro 26, freio a disco, 21 marchas. Precisa de ajuste no câmbio traseiro. Ótima para iniciantes.",
       category: Category.ESPORTES,
@@ -151,6 +158,7 @@ async function main() {
 
   const anuncio5 = await prisma.announcement.create({
     data: {
+      createdAt: hoursAgo(49),
       title: "Coleção de Livros - Fantasia",
       description: "Coleção completa de 8 livros de fantasia. Inclui O Senhor dos Anéis, As Crônicas de Nárnia, Harry Potter 1-5. Todos em bom estado.",
       category: Category.LIVROS,
@@ -165,6 +173,7 @@ async function main() {
 
   const anuncio6 = await prisma.announcement.create({
     data: {
+      createdAt: hoursAgo(72),
       title: "TV Samsung 40\" Full HD",
       description: "Smart TV Samsung 40 polegadas, Full HD. Funciona perfeitamente, troquei por maior. Controle remoto incluso.",
       category: Category.ELETRONICOS,
@@ -180,6 +189,7 @@ async function main() {
 
   const anuncio7 = await prisma.announcement.create({
     data: {
+      createdAt: hoursAgo(96),
       title: "Brinquedos para Criança",
       description: "Lote de brinquedos: carrinhos, bonecas, cubo mágico, jogos de tabuleiro. Filho já cresceu, tudo em bom estado.",
       category: Category.BRINQUEDOS,
@@ -194,6 +204,7 @@ async function main() {
 
   const anuncio8 = await prisma.announcement.create({
     data: {
+      createdAt: hoursAgo(150),
       title: "Mesa de Jantar 6 Cadeiras",
       description: "Mesa de jantar em madeira maciça com 6 cadeiras. Usada mas resistente. Motivo: reforma da cozinha com mesa embutida.",
       category: Category.MOVEIS,
@@ -209,6 +220,7 @@ async function main() {
 
   const anuncio9 = await prisma.announcement.create({
     data: {
+      createdAt: hoursAgo(240),
       title: "Roupas Femininas Tamanho M",
       description: "Lote com 15 peças de roupas femininas tamanho M: blusas, calças, vestidos. Todas lavadas e em bom estado.",
       category: Category.ROUPAS,
@@ -223,6 +235,7 @@ async function main() {
 
   const anuncio10 = await prisma.announcement.create({
     data: {
+      createdAt: hoursAgo(336),
       title: "Kit Panelas Inox",
       description: "Kit com 5 panelas de aço inox, tamanhos variados. Usadas por 6 meses, sem arranhões. Presente que recebi e já tinha equivalentes.",
       category: Category.CASA,
@@ -237,6 +250,7 @@ async function main() {
 
   const anuncio11 = await prisma.announcement.create({
     data: {
+      createdAt: hoursAgo(504),
       title: "Mochila de Trilha 40L",
       description: "Mochila para trilha com 40L, impermeável, com encosto ergonômico. Usei em 3 trilhas, vendi porque ganhei uma maior.",
       category: Category.ESPORTES,
@@ -251,6 +265,7 @@ async function main() {
 
   const anuncio12 = await prisma.announcement.create({
     data: {
+      createdAt: hoursAgo(720),
       title: "Jogo de Tabuleiro - Catan",
       description: "Jogo de tabuleiro Catan completo, com todas as peças e manual em português. Jogado poucas vezes.",
       category: Category.OUTROS,

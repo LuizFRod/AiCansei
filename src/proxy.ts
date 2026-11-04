@@ -38,6 +38,15 @@ export async function proxy(request: NextRequest) {
 
   // All other API routes require authentication
   if (pathname.startsWith("/api/")) {
+    // Public read access to the announcements feed (GET only)
+    const isPublicFeed =
+      request.method === "GET" &&
+      (pathname === "/api/announcements" ||
+        /^\/api\/announcements\/[^/]+$/.test(pathname))
+    if (isPublicFeed) {
+      return NextResponse.next()
+    }
+
     const session = await auth()
     if (!session?.user) {
       return NextResponse.json(
@@ -50,6 +59,13 @@ export async function proxy(request: NextRequest) {
 
   // Public auth pages are always accessible
   if (pathname.startsWith("/login") || pathname.startsWith("/cadastro")) {
+    // Logged-in users go straight to the feed instead of registering again
+    if (pathname.startsWith("/cadastro")) {
+      const session = await auth()
+      if (session?.user) {
+        return NextResponse.redirect(new URL("/feed", request.url))
+      }
+    }
     return NextResponse.next()
   }
 
