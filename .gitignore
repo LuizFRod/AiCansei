@@ -57,3 +57,4 @@ next-env.d.ts
 
 # cópias locais de trabalho
 /att
+.env*
