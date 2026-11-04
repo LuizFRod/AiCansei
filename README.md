@@ -76,3 +76,8 @@ npx prisma db seed   # Popular banco
 1. Conectar repositório GitHub no [Vercel](https://vercel.com)
 2. Configurar variáveis de ambiente
 3. Deploy automático a cada push
+
+## Exercício de controle de versão
+
+Branch iteracao2: modificações realizadas para
+demonstrar o processo de merge com a branch main.
