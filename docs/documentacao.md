@@ -2,6 +2,12 @@
 
 > Plataforma web de doação de itens usados: doe o que não usa mais e encontre coisas incríveis.
 
+## Revisão da especificação — Iteração 2
+
+Esta especificação foi revisada em **04/11/2026** para alinhar o modelo de dados documentado ao schema Prisma atual e relacionar os escopos de construção da Iteração 2. A Iteração 2 está descrita em [Etapa 4](./etapa-4-construcao-iteracao-2.md) (anúncios, fotos, feed e busca) e [Etapa 5](./etapa-5-construcao-continuacao-iteracao-2.md) (interesses, doações, avaliações, favoritos, notificações e administração).
+
+O modelo atual também inclui **Message** (mensagens entre usuários sobre anúncios) e **PasswordReset** (tokens de recuperação de senha). Essas entidades e suas relações aparecem nos diagramas de domínio e de classes.
+
 ---
 
 ## 1. Título do Projeto
@@ -275,9 +281,13 @@ erDiagram
     USER ||--o{ REVIEW : "é avaliado (reviewed)"
     USER ||--o{ ACCOUNT : "vincula (OAuth)"
     USER ||--o{ SESSION : possui
+    USER ||--o{ PASSWORD_RESET : solicita
+    USER ||--o{ MESSAGE : envia
+    USER ||--o{ MESSAGE : recebe
     ANNOUNCEMENT ||--o{ PHOTO : contém
     ANNOUNCEMENT ||--o{ MANIFESTATION : recebe
     ANNOUNCEMENT ||--o{ FAVORITE : é salvo em
+    ANNOUNCEMENT ||--o{ MESSAGE : contextualiza
 
     USER {
         string id PK
@@ -335,6 +345,21 @@ erDiagram
         bool read
         string userId FK
     }
+    PASSWORD_RESET {
+        string id PK
+        string tokenHash UK
+        datetime expiresAt
+        datetime? usedAt
+        string userId FK
+    }
+    MESSAGE {
+        string id PK
+        string content
+        bool read
+        string announcementId FK
+        string senderId FK
+        string recipientId FK
+    }
 ```
 
 Estados principais:
@@ -387,6 +412,16 @@ classDiagram
         +NotificationType type
         +Boolean read
     }
+    class PasswordReset {
+        +String tokenHash
+        +DateTime expiresAt
+        +DateTime? usedAt
+    }
+    class Message {
+        +String content
+        +Boolean read
+        +DateTime createdAt
+    }
 
     User "1" --> "*" Announcement : donor
     User "0..1" --> "*" Announcement : recipient
@@ -395,9 +430,13 @@ classDiagram
     User "1" --> "*" Review : reviewed
     User "1" --> "*" Favorite
     User "1" --> "*" Notification
+    User "1" --> "*" PasswordReset
+    User "1" --> "*" Message : sender
+    User "1" --> "*" Message : recipient
     Announcement "1" *--> "*" Photo
     Announcement "1" --> "*" Manifestation
     Announcement "1" --> "*" Favorite
+    Announcement "1" --> "*" Message
 
     class AuthService {
         <<lib/auth.ts>>
