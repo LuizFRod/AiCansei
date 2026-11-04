@@ -58,3 +58,5 @@ next-env.d.ts
 # cópias locais de trabalho
 /att
 .env*
+
+# Exercício da Iteração 2: alteração para demonstrar merge
