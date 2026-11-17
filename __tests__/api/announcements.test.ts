@@ -9,6 +9,9 @@ import { vi } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    user: {
+      findUnique: vi.fn(),
+    },
     announcement: {
       findMany: vi.fn(),
       count: vi.fn(),
@@ -277,6 +280,7 @@ describe("POST /api/announcements", () => {
     (auth as ReturnType<typeof vi.fn>).mockResolvedValue({
       user: { id: "user123" },
     });
+    (prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "user123" });
     (prisma.announcement.create as ReturnType<typeof vi.fn>).mockResolvedValue(mockCreated);
   });
 
