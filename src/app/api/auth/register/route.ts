@@ -4,6 +4,7 @@ import { z } from "zod/v4"
 import { prisma } from "@/lib/prisma"
 import { rateLimit, clientIp } from "@/lib/rate-limit"
 import { verifyHuman } from "@/lib/captcha"
+import { sendEmail, welcomeEmail } from "@/lib/email"
 
 const registerSchema = z.object({
   name: z
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         name,
         email,
@@ -69,6 +70,16 @@ export async function POST(request: Request) {
         role: "RECEPTOR",
       },
     })
+
+    try {
+      const email = welcomeEmail(user.name)
+      await sendEmail({
+        to: user.email,
+        subject: email.subject,
+        html: email.html,
+      })    } catch (emailError) {
+      console.error("Error sending welcome email:", emailError)
+    }
 
     return NextResponse.json(
       { message: "Conta criada com sucesso." },

@@ -89,6 +89,7 @@ model User {
   notifications          Notification[]
   givenReviews           Review[] @relation("Reviewer")
   receivedReviews        Review[] @relation("Reviewed")
+  passwordResets         PasswordReset[]
 
   @@index([email])
   @@index([role])
@@ -224,4 +225,17 @@ model Notification {
 
   @@index([userId, read])
   @@index([createdAt])
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  userId    String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

@@ -21,6 +21,13 @@ export default function PerfilPage() {
   const [state, setState] = useState("");
   const [phone, setPhone] = useState("");
 
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (session?.user) {
@@ -60,6 +67,41 @@ export default function PerfilPage() {
       setError("Erro ao atualizar perfil");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handlePasswordSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setPwLoading(true);
+    setPwError("");
+    setPwSuccess("");
+
+    if (newPassword !== confirmPw) {
+      setPwError("As senhas não conferem.");
+      setPwLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword, confirmPassword: confirmPw }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setPwSuccess("Senha alterada com sucesso!");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPw("");
+      } else {
+        setPwError(data.error || "Erro ao alterar senha");
+      }
+    } catch {
+      setPwError("Erro ao alterar senha");
+    } finally {
+      setPwLoading(false);
     }
   }
 
@@ -184,6 +226,67 @@ export default function PerfilPage() {
             <div className="flex justify-end pt-2">
               <Button type="submit" loading={loading}>
                 Salvar alterações
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Alterar senha */}
+      <Card>
+        <CardContent className="pt-6">
+          <h3 className="mb-4 text-sm font-semibold text-gray-900">Alterar senha</h3>
+
+          {pwSuccess && (
+            <div className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{pwSuccess}</div>
+          )}
+          {pwError && (
+            <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{pwError}</div>
+          )}
+
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-700">Senha atual</label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+                placeholder="Sua senha atual"
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm placeholder-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Nova senha</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  placeholder="Mín. 8 caracteres"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm placeholder-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Confirmar nova senha</label>
+                <input
+                  type="password"
+                  value={confirmPw}
+                  onChange={(e) => setConfirmPw(e.target.value)}
+                  required
+                  minLength={8}
+                  placeholder="Repita a nova senha"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm placeholder-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button type="submit" loading={pwLoading}>
+                Alterar senha
               </Button>
             </div>
           </form>
