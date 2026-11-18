@@ -21,13 +21,20 @@ export async function PATCH(
 
     const existing = await prisma.announcement.findUnique({
       where: { id },
-      select: { id: true, donorId: true, title: true },
+      select: { id: true, donorId: true, title: true, status: true },
     });
 
     if (!existing) {
       return NextResponse.json(
         { error: "Anúncio não encontrado." },
         { status: 404 }
+      );
+    }
+
+    if (existing.status !== "PENDENTE") {
+      return NextResponse.json(
+        { error: "Apenas anúncios pendentes podem ser moderados." },
+        { status: 409 }
       );
     }
 

@@ -17,7 +17,7 @@ const protectedRoutes = [
 const adminRoutes = ["/admin"]
 
 // API routes that don't require authentication
-const publicApiRoutes = ["/api/auth", "/api/upload"]
+const publicApiRoutes = ["/api/auth", "/api/upload", "/api/contact"]
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl

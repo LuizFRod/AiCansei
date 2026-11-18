@@ -171,7 +171,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-30 w-full border-b border-gray-200 bg-white shadow-sm">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link href="/" className="flex shrink-0 items-center gap-1.5">
+        <Link href={isLoggedIn ? "/feed" : "/"} className="flex shrink-0 items-center gap-1.5">
           <span className="text-xl">🌱</span>
           <span className="text-lg font-bold text-gray-900">AiCansei</span>
         </Link>

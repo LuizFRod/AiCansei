@@ -98,6 +98,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const donor = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true },
+    });
+
+    if (!donor) {
+      return NextResponse.json(
+        { error: "Sua sessão expirou ou é inválida. Faça login novamente." },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const result = announcementSchema.safeParse(body);
 

@@ -107,3 +107,19 @@ A Vercel está com segredo forte gerado ✓, mas o `.env` local usa string previ
 
 ---
 *Auditoria realizada por revisão manual assistida. Revisões automatizadas por PR podem ser adicionadas via `.github/workflows/security.yml`.*
+
+---
+
+## ✅ Remediação Implementada (21/08/2026)
+
+| Achado | Correção |
+|---|---|
+| A-1 | `POST /api/reviews` agora exige doação concluída (`DOADO`) entre avaliador e avaliado; `donationId`, quando enviado, é validado contra o vínculo real + rate limit de 10 avaliações/min por usuário |
+| A-2 | Rate limiting em memória (`src/lib/rate-limit.ts`): login 10/min/IP, registro 10/h/IP, contato 5/h/IP, reviews 10/min/usuário (observação: em serverless o bucket é por instância — mitiga abuso casual) |
+| M-1 | `donate` bloqueia conclusão se anúncio não está `ATIVO` (409) |
+| M-2 | `moderate` aceita apenas anúncios `PENDENTE` (409 caso contrário) |
+| M-3 | `contact` com validação Zod, limites de tamanho, sanitização CRLF e rate limit; **bug adicional corrigido:** proxy agora libera `/api/contact` para anônimos (formulário público estava bloqueado com 401 desde a origem) |
+| M-4 | Segredo local forte gerado (`.env`, fora do git) |
+| Extra | Sessão fantasma pós-seed: criação de anúncio valida existência do usuário da sessão e retorna 401 claro em vez de erro 500 de FK |
+
+Pendências documentadas mantidas como backlog: B-1, B-2, B-3, B-4.

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { z } from "zod/v4"
 import { prisma } from "@/lib/prisma"
+import { rateLimit, clientIp } from "@/lib/rate-limit"
 
 const registerSchema = z.object({
   name: z
@@ -17,6 +18,13 @@ const registerSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    if (!rateLimit(`register:${clientIp(request)}`, 10, 3_600_000)) {
+      return NextResponse.json(
+        { error: "Muitas tentativas de cadastro. Tente novamente mais tarde." },
+        { status: 429 }
+      )
+    }
+
     const body = await request.json()
     const result = registerSchema.safeParse(body)
 
@@ -38,7 +46,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcrypt.hash(password, 12)
 
     await prisma.user.create({
       data: {

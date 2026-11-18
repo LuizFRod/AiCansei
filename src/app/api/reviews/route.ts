@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 import { reviewSchema } from "@/lib/validations";
 
 export async function GET(request: NextRequest) {
@@ -68,6 +69,51 @@ export async function POST(request: NextRequest) {
         { error: "Você não pode avaliar a si mesmo." },
         { status: 400 }
       );
+    }
+
+    if (!rateLimit(`review:${session.user.id}`, 10, 60_000)) {
+      return NextResponse.json(
+        { error: "Muitas avaliações em sequência. Aguarde um instante." },
+        { status: 429 }
+      );
+    }
+
+    const donationLink = await prisma.announcement.findFirst({
+      where: {
+        status: "DOADO",
+        OR: [
+          { donorId: session.user.id, recipientId: reviewedId },
+          { donorId: reviewedId, recipientId: session.user.id },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (!donationLink) {
+      return NextResponse.json(
+        { error: "Você só pode avaliar usuários com quem concluiu uma doação." },
+        { status: 403 }
+      );
+    }
+
+    if (donationId) {
+      const linkedDonation = await prisma.announcement.findFirst({
+        where: {
+          id: donationId,
+          OR: [
+            { donorId: session.user.id, recipientId: reviewedId },
+            { donorId: reviewedId, recipientId: session.user.id },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (!linkedDonation) {
+        return NextResponse.json(
+          { error: "Doação inválida para esta avaliação." },
+          { status: 403 }
+        );
+      }
     }
 
     const existingReview = await prisma.review.findFirst({

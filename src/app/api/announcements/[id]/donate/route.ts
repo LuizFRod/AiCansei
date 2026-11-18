@@ -16,7 +16,7 @@ export async function PATCH(
 
     const existing = await prisma.announcement.findUnique({
       where: { id },
-      select: { donorId: true, title: true },
+      select: { donorId: true, title: true, status: true },
     });
 
     if (!existing) {
@@ -28,6 +28,13 @@ export async function PATCH(
 
     if (existing.donorId !== session.user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (existing.status !== "ATIVO") {
+      return NextResponse.json(
+        { error: "Este anúncio não está mais disponível para doação." },
+        { status: 409 }
+      );
     }
 
     const body = await request.json();
