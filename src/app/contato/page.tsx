@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Mail, Phone, MapPin, Clock, MessageCircle, CheckCircle } from "lucide-react";
+import HumanVerification, { type HumanValue } from "@/components/ui/HumanVerification";
 
 export default function ContatoPage() {
   const [nome, setNome] = useState("");
@@ -9,25 +10,54 @@ export default function ContatoPage() {
   const [assunto, setAssunto] = useState("duvida");
   const [mensagem, setMensagem] = useState("");
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+  const [human, setHuman] = useState<HumanValue>({});
+  const [humanRefreshKey, setHumanRefreshKey] = useState(0);
 
-  function handleSubmit(e: React.FormEvent) {
+  const loadCaptcha = useCallback(() => {
+    setHumanRefreshKey((key) => key + 1);
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
 
-    const assuntoMap: Record<string, string> = {
-      duvida: "Dúvida geral",
-      problema: "Reportar problema",
-      sugestao: "Sugestão",
-      denuncia: "Denúncia",
-      outro: "Outro",
-    };
+    if (!human.turnstileToken && !human.captchaAnswer?.trim()) {
+      setError("Complete a verificação de humano.");
+      return;
+    }
 
-    const subject = encodeURIComponent(`[AiCansei] ${assuntoMap[assunto] || assunto}`);
-    const body = encodeURIComponent(
-      `Nome: ${nome}\nEmail: ${email}\n\n${mensagem}`
-    );
+    setSending(true);
 
-    window.location.href = `mailto:10723667@mackenzista.com.br?subject=${subject}&body=${body}`;
-    setSent(true);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome,
+          email,
+          assunto,
+          mensagem,
+          ...human,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Erro ao enviar mensagem. Tente novamente.");
+        loadCaptcha();
+        return;
+      }
+
+      setSent(true);
+    } catch {
+      setError("Ocorreu um erro ao enviar. Tente novamente.");
+      loadCaptcha();
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -117,13 +147,20 @@ export default function ContatoPage() {
               Obrigado pelo contato. Responderemos em breve pelo email informado.
             </p>
             <button
-              onClick={() => { setSent(false); setNome(""); setEmail(""); setMensagem(""); setAssunto("duvida"); }}
+              onClick={() => { setSent(false); setNome(""); setEmail(""); setMensagem(""); setAssunto("duvida"); loadCaptcha(); }}
               className="mt-4 text-sm font-medium text-emerald-600 hover:text-emerald-700"
             >
               Enviar outra mensagem
             </button>
           </div>
         ) : (
+          <>
+            {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm text-center">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
@@ -189,15 +226,25 @@ export default function ContatoPage() {
               />
             </div>
 
+            <div>
+              <HumanVerification
+                value={human}
+                onChange={setHuman}
+                refreshKey={humanRefreshKey}
+              />
+            </div>
+
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                disabled={sending}
+                className="flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed"
               >
-                Enviar mensagem
+                {sending ? "Enviando..." : "Enviar mensagem"}
               </button>
             </div>
           </form>
+          </>
         )}
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { verifyHuman } from "@/lib/captcha";
 
 const contactSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
@@ -10,6 +11,9 @@ const contactSchema = z.object({
     .string()
     .min(1, "Mensagem é obrigatória")
     .max(2000, "Mensagem muito longa"),
+  captchaToken: z.string().optional(),
+  captchaAnswer: z.union([z.string(), z.number()]).optional(),
+  turnstileToken: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -27,6 +31,13 @@ export async function POST(request: NextRequest) {
     if (!result.success) {
       const message = result.error.issues[0]?.message || "Dados inválidos";
       return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    if (!(await verifyHuman(result.data))) {
+      return NextResponse.json(
+        { error: "Verificação de humano inválida ou expirada." },
+        { status: 400 }
+      );
     }
 
     const { nome, email, assunto, mensagem } = result.data;

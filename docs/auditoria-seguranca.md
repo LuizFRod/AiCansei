@@ -123,3 +123,16 @@ A Vercel está com segredo forte gerado ✓, mas o `.env` local usa string previ
 | Extra | Sessão fantasma pós-seed: criação de anúncio valida existência do usuário da sessão e retorna 401 claro em vez de erro 500 de FK |
 
 Pendências documentadas mantidas como backlog: B-1, B-2, B-3, B-4.
+
+### Camada adicional (21/08/2026 — tarde)
+
+| Item | Implementação |
+|---|---|
+| Verificação de humano | Cloudflare Turnstile com fallback automático para captcha matemático assinado (HMAC-SHA256, expira em 10 min) enquanto as chaves `TURNSTILE_*` não forem configuradas; componente único `HumanVerification.tsx` usado no cadastro e contato |
+| Rate limit global | 60 escritas/min/IP no proxy para todas as APIs autenticadas (somado aos limites específicos) |
+| Security headers | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` aplicados no middleware |
+| Geo-bloqueio | Proxy barra IPs fora do Brasil via `x-vercel-ip-country` (403); header é definido pela Vercel e não pode ser forjado em produção |
+| Lockout de login | 7 tentativas falhas por e-mail → bloqueio temporário de 5 min (em memória) |
+| Senha forte | Mínimo 8 caracteres com letra e número (cadastro) |
+
+*Limitações conhecidas: rate limit e lockout são por instância (serverless) — mitiga abuso casual; para rigor total usar Redis/Upstash. O captcha matemático é uma barreira básica; o Turnstile resolve definitivamente quando ativado.*

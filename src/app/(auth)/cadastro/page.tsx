@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { signIn } from "next-auth/react"
 import Link from "next/link"
+import HumanVerification, { type HumanValue } from "@/components/ui/HumanVerification"
 
 export default function CadastroPage() {
   const router = useRouter()
@@ -13,6 +14,12 @@ export default function CadastroPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [human, setHuman] = useState<HumanValue>({})
+  const [humanRefreshKey, setHumanRefreshKey] = useState(0)
+
+  const loadCaptcha = useCallback(() => {
+    setHumanRefreshKey((key) => key + 1)
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -23,8 +30,13 @@ export default function CadastroPage() {
       return
     }
 
-    if (password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres.")
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+      setError("A senha deve ter pelo menos 8 caracteres, com letras e números.")
+      return
+    }
+
+    if (!human.turnstileToken && !human.captchaAnswer?.trim()) {
+      setError("Complete a verificação de humano.")
       return
     }
 
@@ -34,13 +46,19 @@ export default function CadastroPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          ...human,
+        }),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
         setError(data.error || "Erro ao criar conta. Tente novamente.")
+        loadCaptcha()
         return
       }
 
@@ -59,6 +77,7 @@ export default function CadastroPage() {
       }
     } catch {
       setError("Ocorreu um erro ao criar conta. Tente novamente.")
+      loadCaptcha()
     } finally {
       setLoading(false)
     }
@@ -148,6 +167,14 @@ export default function CadastroPage() {
               placeholder="Repita a senha"
               className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
             />
+          </div>
+
+          <div>
+            <HumanVerification
+                value={human}
+                onChange={setHuman}
+                refreshKey={humanRefreshKey}
+              />
           </div>
 
           <button

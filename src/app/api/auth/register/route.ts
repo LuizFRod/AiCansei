@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs"
 import { z } from "zod/v4"
 import { prisma } from "@/lib/prisma"
 import { rateLimit, clientIp } from "@/lib/rate-limit"
+import { verifyHuman } from "@/lib/captcha"
 
 const registerSchema = z.object({
   name: z
@@ -12,8 +13,13 @@ const registerSchema = z.object({
   email: z.email("Email inválido"),
   password: z
     .string()
-    .min(6, "A senha deve ter pelo menos 6 caracteres")
-    .max(100, "Senha muito longa"),
+    .min(8, "A senha deve ter pelo menos 8 caracteres")
+    .max(100, "Senha muito longa")
+    .regex(/[A-Za-z]/, "A senha deve conter pelo menos uma letra")
+    .regex(/[0-9]/, "A senha deve conter pelo menos um número"),
+  captchaToken: z.string().optional(),
+  captchaAnswer: z.union([z.string(), z.number()]).optional(),
+  turnstileToken: z.string().optional(),
 })
 
 export async function POST(request: Request) {
@@ -31,6 +37,13 @@ export async function POST(request: Request) {
     if (!result.success) {
       const message = result.error.issues[0]?.message || "Dados inválidos"
       return NextResponse.json({ error: message }, { status: 400 })
+    }
+
+    if (!(await verifyHuman(result.data))) {
+      return NextResponse.json(
+        { error: "Verificação de humano inválida ou expirada." },
+        { status: 400 }
+      )
     }
 
     const { name, email, password } = result.data

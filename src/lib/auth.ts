@@ -3,7 +3,35 @@ import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 
+const loginAttempts = new Map<
+  string,
+  { count: number; lockedUntil: number }
+>()
+const MAX_LOGIN_ATTEMPTS = 7
+const LOGIN_LOCK_MS = 5 * 60 * 1000
+
+function registerFailedLogin(email: string) {
+  if (loginAttempts.size > 5000) {
+    const now = Date.now()
+    for (const [key, value] of loginAttempts) {
+      if (value.lockedUntil < now) loginAttempts.delete(key)
+    }
+  }
+
+  const key = email.toLowerCase()
+  const attempt = loginAttempts.get(key)
+  const count = (attempt?.count ?? 0) + 1
+
+  if (count >= MAX_LOGIN_ATTEMPTS) {
+    loginAttempts.set(key, { count: 0, lockedUntil: Date.now() + LOGIN_LOCK_MS })
+  } else {
+    loginAttempts.set(key, { count, lockedUntil: 0 })
+  }
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
+
+
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
@@ -19,11 +47,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null
         }
 
+        const emailKey = String(credentials.email).toLowerCase()
+        const attempt = loginAttempts.get(emailKey)
+
+        if (attempt && attempt.lockedUntil > Date.now()) {
+          return null
+        }
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string },
         })
 
         if (!user || !user.password) {
+          registerFailedLogin(emailKey)
           return null
         }
 
@@ -33,8 +69,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         )
 
         if (!isValid) {
+          registerFailedLogin(emailKey)
           return null
         }
+
+        loginAttempts.delete(emailKey)
 
         return {
           id: user.id,

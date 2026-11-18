@@ -1,7 +1,31 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
+import { rateLimit, clientIp } from "@/lib/rate-limit"
 
+function withSecurityHeaders(response: NextResponse) {
+  response.headers.set("X-Frame-Options", "DENY")
+  response.headers.set("X-Content-Type-Options", "nosniff")
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()"
+  )
+  return response
+}
+
+function blockedResponse(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.json(
+      { error: "Serviço disponível apenas no Brasil." },
+      { status: 403 }
+    )
+  }
+  return new NextResponse(
+    `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>AiCansei</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f9fafb"><div style="text-align:center;padding:2rem"><h1 style="color:#059669">🌱 AiCansei</h1><p style="color:#374151">Este serviço está disponível apenas no Brasil.</p></div></body></html>`,
+    { status: 403, headers: { "content-type": "text/html; charset=utf-8" } }
+  )
+}
 // Routes that require authentication
 const protectedRoutes = [
   "/feed",
@@ -17,14 +41,24 @@ const protectedRoutes = [
 const adminRoutes = ["/admin"]
 
 // API routes that don't require authentication
-const publicApiRoutes = ["/api/auth", "/api/upload", "/api/contact"]
+const publicApiRoutes = [
+  "/api/auth",
+  "/api/upload",
+  "/api/contact",
+  "/api/captcha",
+]
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  const country = request.headers.get("x-vercel-ip-country")
+  if (country && country !== "BR") {
+    return blockedResponse(request)
+  }
+
   // Allow public API routes
   if (publicApiRoutes.some((route) => pathname.startsWith(route))) {
-    return NextResponse.next()
+    return withSecurityHeaders(NextResponse.next())
   }
 
   // Allow static files and Next.js internals
@@ -33,28 +67,37 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/favicon") ||
     pathname.includes(".")
   ) {
-    return NextResponse.next()
+    return withSecurityHeaders(NextResponse.next())
   }
 
   // All other API routes require authentication
   if (pathname.startsWith("/api/")) {
+    if (
+      ["POST", "PUT", "PATCH", "DELETE"].includes(request.method) &&
+      !rateLimit(`api:${clientIp(request)}`, 60, 60_000)
+    ) {
+      return NextResponse.json(
+        { error: "Muitas requisições. Tente novamente em instantes." },
+        { status: 429 }
+      )
+    }
+
     // Public read access to the announcements feed (GET only)
     const isPublicFeed =
       request.method === "GET" &&
       (pathname === "/api/announcements" ||
         /^\/api\/announcements\/[^/]+$/.test(pathname))
     if (isPublicFeed) {
-      return NextResponse.next()
+      return withSecurityHeaders(NextResponse.next())
     }
 
     const session = await auth()
     if (!session?.user) {
-      return NextResponse.json(
-        { error: "Autenticação necessária." },
-        { status: 401 }
+      return withSecurityHeaders(
+        NextResponse.json({ error: "Autenticação necessária." }, { status: 401 })
       )
     }
-    return NextResponse.next()
+    return withSecurityHeaders(NextResponse.next())
   }
 
   // Public auth pages are always accessible
@@ -66,12 +109,12 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL("/feed", request.url))
       }
     }
-    return NextResponse.next()
+    return withSecurityHeaders(NextResponse.next())
   }
 
   // Home page is public
   if (pathname === "/") {
-    return NextResponse.next()
+    return withSecurityHeaders(NextResponse.next())
   }
 
   // Check if the route is protected
