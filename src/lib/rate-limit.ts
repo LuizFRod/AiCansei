@@ -29,6 +29,15 @@ export function rateLimit(key: string, limit: number, windowMs: number): boolean
 }
 
 export function clientIp(request: Request): string {
+  const real = request.headers.get("x-real-ip");
+  if (real?.trim()) return real.trim();
+
   const forwarded = request.headers.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || "unknown";
+  if (forwarded) {
+    // último salto = adicionado pelo proxy confiável (Vercel); entradas à esquerda são forjáveis
+    const last = forwarded.split(",").pop()?.trim();
+    if (last) return last;
+  }
+
+  return "unknown";
 }

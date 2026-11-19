@@ -10,12 +10,15 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category");
     const condition = searchParams.get("condition");
     const city = searchParams.get("city");
-    const search = searchParams.get("search") || searchParams.get("q");
+    const search =
+      (searchParams.get("search") || searchParams.get("q"))
+        ?.replace(/[\x00-\x1f\x7f]/g, "")
+        .slice(0, 100) || undefined;
     const availability = searchParams.get("availability");
     const status = searchParams.get("status");
     const donorId = searchParams.get("donorId");
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "12", 10);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "12", 10) || 12));
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};
