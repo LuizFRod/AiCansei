@@ -24,6 +24,10 @@ export const announcementSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   address: z.string().optional(),
+  cep: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^\d{5}-?\d{3}$/.test(v.trim()), "CEP invalido"),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
 });

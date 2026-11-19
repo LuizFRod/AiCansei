@@ -17,10 +17,12 @@ import {
   LogOut,
   LayoutGrid,
   Shield,
+  MessageCircle,
 } from "lucide-react";
 
 const NAV_LINKS = [
   { href: "/feed", label: "Feed", icon: LayoutGrid },
+  { href: "/mensagens", label: "Mensagens", icon: MessageCircle },
   { href: "/anuncio/novo", label: "Novo Anúncio", icon: Plus },
 ];
 

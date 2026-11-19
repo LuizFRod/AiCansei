@@ -6,6 +6,8 @@ import { useSession } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ImageUpload } from "@/components/announcements/ImageUpload";
+import { LocationPicker } from "@/components/ui/LocationPicker";
+import { AddressPicker } from "@/components/ui/AddressPicker";
 import { CATEGORY_LABELS, CONDITION_LABELS, AVAILABILITY_LABELS } from "@/lib/constants";
 import type { Category, Condition, Availability } from "@prisma/client";
 
@@ -23,6 +25,7 @@ export default function NovoAnúncioPage() {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [address, setAddress] = useState("");
+  const [cep, setCep] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
 
   if (status === "unauthenticated") {
@@ -53,6 +56,7 @@ export default function NovoAnúncioPage() {
           city: city || undefined,
           state: state || undefined,
           address: address || undefined,
+          cep: cep || undefined,
           photos: photos.length > 0 ? photos.map((url, i) => ({ url, sortOrder: i })) : undefined,
         }),
       });
@@ -173,39 +177,22 @@ export default function NovoAnúncioPage() {
         <Card>
           <CardContent className="space-y-4 pt-6">
             <h3 className="text-xs font-medium text-gray-700">Localização</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs text-gray-500">Cidade</label>
-                <input
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Sua cidade"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-gray-500">Estado</label>
-                <input
-                  type="text"
-                  value={state}
-                  onChange={(e) => setState(e.target.value)}
-                  placeholder="UF"
-                  maxLength={2}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-gray-500">Endereço (opcional)</label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Rua, bairro, referência..."
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              />
-            </div>
+            <LocationPicker
+              city={city}
+              state={state}
+              onCityChange={setCity}
+              onStateChange={setState}
+            />
+            <AddressPicker
+              city={city}
+              state={state}
+              address={address}
+              cep={cep}
+              onAddressChange={setAddress}
+              onCepChange={setCep}
+              onCityChange={setCity}
+              onStateChange={setState}
+            />
           </CardContent>
         </Card>
 

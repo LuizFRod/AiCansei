@@ -54,6 +54,7 @@ enum ManifestationStatus {
 }
 
 enum NotificationType {
+  MENSAGEM
   INTERESSE
   AVALIACAO
   MODERACAO
@@ -61,35 +62,38 @@ enum NotificationType {
 }
 
 model User {
-  id         String    @id @default(cuid())
-  name       String
-  email      String    @unique
-  password   String?
-  phone      String?
-  address    String?
-  city       String?
-  state      String?
-  photo      String?
-  role       Role      @default(RECEPTOR)
-  reputation Float     @default(0)
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  password    String?
+  phone       String?
+  address     String?
+  cep         String?
+  city        String?
+  state       String?
+  photo       String?
+  role        Role     @default(RECEPTOR)
+  reputation  Float    @default(0)
   reviewCount Int      @default(0)
-  latitude   Float?
-  longitude  Float?
-  active     Boolean   @default(true)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  latitude    Float?
+  longitude   Float?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   accounts Account[]
   sessions Session[]
 
   announcements          Announcement[]
-  recipientAnnouncements Announcement[] @relation("RecipientAnnouncements")
+  recipientAnnouncements Announcement[]  @relation("RecipientAnnouncements")
   manifestations         Manifestation[]
   favorites              Favorite[]
   notifications          Notification[]
-  givenReviews           Review[] @relation("Reviewer")
-  receivedReviews        Review[] @relation("Reviewed")
+  givenReviews           Review[]        @relation("Reviewer")
+  receivedReviews        Review[]        @relation("Reviewed")
   passwordResets         PasswordReset[]
+  sentMessages           Message[]       @relation("SentMessages")
+  receivedMessages       Message[]       @relation("ReceivedMessages")
 
   @@index([email])
   @@index([role])
@@ -124,27 +128,28 @@ model Session {
 }
 
 model Announcement {
-  id          String             @id @default(cuid())
-  title       String
-  description String
-  category    Category
-  condition   Condition
-  availability Availability     @default(AMBAS)
-  city        String?
-  state       String?
-  address     String?
-  latitude    Float?
-  longitude   Float?
-  status      AnnouncementStatus @default(PENDENTE)
-  donorId     String
-  recipientId String?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id           String             @id @default(cuid())
+  title        String
+  description  String
+  category     Category
+  condition    Condition
+  availability Availability       @default(AMBAS)
+  city         String?
+  state        String?
+  address      String?
+  latitude     Float?
+  longitude    Float?
+  status       AnnouncementStatus @default(PENDENTE)
+  donorId      String
+  recipientId  String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
-  donor          User           @relation(fields: [donorId], references: [id], onDelete: Cascade)
-  recipient      User?          @relation("RecipientAnnouncements", fields: [recipientId], references: [id])
+  donor          User            @relation(fields: [donorId], references: [id], onDelete: Cascade)
+  recipient      User?           @relation("RecipientAnnouncements", fields: [recipientId], references: [id])
   photos         Photo[]
   manifestations Manifestation[]
+  messages       Message[]
   favorites      Favorite[]
 
   @@index([donorId])
@@ -155,11 +160,11 @@ model Announcement {
 }
 
 model Photo {
-  id             String      @id @default(cuid())
+  id             String   @id @default(cuid())
   url            String
-  sortOrder      Int         @default(0)
+  sortOrder      Int      @default(0)
   announcementId String
-  createdAt      DateTime    @default(now())
+  createdAt      DateTime @default(now())
 
   announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 
@@ -238,4 +243,21 @@ model PasswordReset {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  content        String
+  read           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  announcementId String
+  senderId       String
+  recipientId    String
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient    User         @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([announcementId, createdAt])
+  @@index([recipientId, read])
 }

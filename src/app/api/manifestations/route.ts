@@ -149,10 +149,21 @@ export async function POST(request: NextRequest) {
 
     await prisma.notification.create({
       data: {
-        title: "Novo interesse no seu anúncio",
-        message: `${session.user.name || "Alguém"} manifestou interesse no seu anúncio "${announcement.title}".`,
-        type: "INTERESSE",
+        title: "💬 Nova mensagem",
+        message: `${session.user.name || "Alguém"} manifestou interesse no seu anúncio "${announcement.title}" e te enviou uma mensagem.`,
+        type: "MENSAGEM",
         userId: announcement.donorId,
+      },
+    });
+
+    await prisma.message.create({
+      data: {
+        content:
+          message?.trim() ||
+          `Olá! Tenho interesse no anúncio "${announcement.title}". Ainda está disponível?`,
+        announcementId,
+        senderId: session.user.id,
+        recipientId: announcement.donorId,
       },
     });
 

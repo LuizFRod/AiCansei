@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod/v4";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function PATCH(
+const schema = z.object({
+  recipientId: z.string().min(1),
+});
+
+export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -13,106 +18,83 @@ export async function PATCH(
     }
 
     const { id } = await params;
+    const body = await request.json();
+    const result = schema.safeParse(body);
 
-    const existing = await prisma.announcement.findUnique({
+    if (!result.success) {
+      return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
+    }
+
+    const { recipientId } = result.data;
+
+    const announcement = await prisma.announcement.findUnique({
       where: { id },
-      select: { donorId: true, title: true, status: true },
+      select: { id: true, title: true, donorId: true, status: true },
     });
 
-    if (!existing) {
+    if (!announcement) {
       return NextResponse.json(
         { error: "Anúncio não encontrado." },
         { status: 404 }
       );
     }
 
-    if (existing.donorId !== session.user.id) {
+    if (announcement.donorId !== session.user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (existing.status !== "ATIVO") {
+    if (announcement.status !== "ATIVO") {
       return NextResponse.json(
-        { error: "Este anúncio não está mais disponível para doação." },
-        { status: 409 }
-      );
-    }
-
-    const body = await request.json();
-    const { recipientId } = body;
-
-    if (!recipientId) {
-      return NextResponse.json(
-        { error: "recipientId é obrigatório." },
+        { error: "Este anúncio não está mais ativo." },
         { status: 400 }
       );
     }
 
-    const validManifestation = await prisma.manifestation.findFirst({
+    const manifestation = await prisma.manifestation.findUnique({
       where: {
-        announcementId: id,
-        userId: recipientId,
+        userId_announcementId: {
+          userId: recipientId,
+          announcementId: id,
+        },
       },
+      select: { id: true },
     });
 
-    if (!validManifestation) {
+    if (!manifestation) {
       return NextResponse.json(
-        { error: "RecipientId não é uma manifestação válida para este anúncio." },
+        { error: "Esta pessoa não manifestou interesse neste anúncio." },
         { status: 400 }
       );
     }
 
-    const updated = await prisma.announcement.update({
-      where: { id },
-      data: {
-        status: "DOADO",
-        recipientId,
-        manifestations: {
-          updateMany: {
-            where: {
-              announcementId: id,
-              userId: { not: recipientId },
-            },
-            data: { status: "RECUSADA" },
-          },
+    await prisma.$transaction([
+      prisma.manifestation.update({
+        where: { id: manifestation.id },
+        data: { status: "ACEITA" },
+      }),
+      prisma.manifestation.updateMany({
+        where: {
+          announcementId: id,
+          id: { not: manifestation.id },
         },
-      },
-      include: {
-        photos: { orderBy: { sortOrder: "asc" } },
-        donor: {
-          select: { id: true, name: true, photo: true, reputation: true },
-        },
-      },
-    });
+        data: { status: "RECUSADA" },
+      }),
+      prisma.announcement.update({
+        where: { id },
+        data: { status: "DOADO", recipientId },
+      }),
+    ]);
 
     await prisma.notification.create({
       data: {
-        title: "Parabéns! Você foi selecionado",
-        message: `Você foi selecionado para receber o item "${existing.title}". Entre em contato com o doador.`,
+        title: "Parabens! Você foi escolhido! 🎉",
+        message: `O doador escolheu você para receber "${announcement.title}". Combine os detalhes pelo chat.`,
         type: "SISTEMA",
         userId: recipientId,
       },
     });
 
-    const unselectedManifestations = await prisma.manifestation.findMany({
-      where: {
-        announcementId: id,
-        userId: { not: recipientId },
-      },
-      select: { userId: true },
-    });
-
-    if (unselectedManifestations.length > 0) {
-      await prisma.notification.createMany({
-        data: unselectedManifestations.map((m) => ({
-          title: "Anúncio doado",
-          message: `O item "${existing.title}" foi doado para outro interessado.`,
-          type: "SISTEMA",
-          userId: m.userId,
-        })),
-      });
-    }
-
-    return NextResponse.json(updated);
+    return NextResponse.json({ success: true, status: "DOADO", recipientId });
   } catch (error) {
     console.error("Error donating announcement:", error);
     return NextResponse.json(

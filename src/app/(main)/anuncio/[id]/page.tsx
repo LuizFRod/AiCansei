@@ -13,7 +13,6 @@ import {
   Package,
   Clock,
   CheckCircle,
-  XCircle,
   MessageSquare,
   Loader2,
 } from "lucide-react";
@@ -97,6 +96,10 @@ export default function AnnouncementDetailPage({
   const [message, setMessage] = useState("");
   const [showManifestModal, setShowManifestModal] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatText, setChatText] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const [chatSent, setChatSent] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -497,6 +500,86 @@ export default function AnnouncementDetailPage({
               </div>
             )}
 
+            {/* Falar com o doador */}
+            {session && !isDonor && announcement.status === "ATIVO" && (
+              <div className="space-y-2">
+                {!chatOpen ? (
+                  <button
+                    onClick={() => setChatOpen(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-emerald-200 bg-emerald-50 py-3 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+                  >
+                    <MessageSquare size={18} />
+                    Falar com o doador
+                  </button>
+                ) : (
+                  <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-3">
+                    {chatSent ? (
+                      <p className="py-2 text-center text-sm text-emerald-700">
+                        Mensagem enviada! 💚{" "}
+                        <a href="/mensagens" className="font-semibold underline">
+                          Abrir conversas
+                        </a>
+                      </p>
+                    ) : (
+                      <>
+                        <textarea
+                          value={chatText}
+                          onChange={(e) => setChatText(e.target.value)}
+                          placeholder={`Oi! Ainda está disponível?`}
+                          rows={3}
+                          maxLength={2000}
+                          className="w-full resize-none rounded-lg border border-gray-200 p-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            disabled={!chatText.trim() || chatSending}
+                            onClick={async () => {
+                              setChatSending(true);
+                              try {
+                                const res = await fetch("/api/messages", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    announcementId: id,
+                                    recipientId: announcement.donor.id,
+                                    content: chatText.trim(),
+                                  }),
+                                });
+                                if (res.ok) {
+                                  setChatSent(true);
+                                } else {
+                                  const data = await res.json();
+                                  alert(data.error || "Erro ao enviar mensagem");
+                                }
+                              } catch {
+                                alert("Erro ao enviar mensagem");
+                              } finally {
+                                setChatSending(false);
+                              }
+                            }}
+                          >
+                            {chatSending ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              "Enviar"
+                            )}
+                          </Button>
+                          <button
+                            onClick={() => setChatOpen(false)}
+                            className="rounded-lg px-3 text-sm text-gray-500 hover:text-gray-700"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {isDonor && (
               <div className="rounded-xl border border-blue-200 bg-blue-50 py-3 text-center text-sm font-medium text-blue-700">
                 Este anúncio e seu
@@ -571,8 +654,15 @@ export default function AnnouncementDetailPage({
                     </Badge>
                   </div>
 
-                  {manifestation.status === "PENDENTE" && (
-                    <div className="mt-4 flex gap-2 border-t border-gray-100 pt-3">
+                  <div className="mt-4 flex gap-2 border-t border-gray-100 pt-3">
+                    <a
+                      href={`/mensagens?a=${announcement.id}&u=${manifestation.user.id}`}
+                      className="flex items-center gap-1.5 rounded-lg border-2 border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+                    >
+                      <MessageSquare size={14} />
+                      Conversar
+                    </a>
+                    {manifestation.status === "PENDENTE" && (
                       <Button
                         size="sm"
                         variant="primary"
@@ -584,25 +674,10 @@ export default function AnnouncementDetailPage({
                           )
                         }
                       >
-                        <CheckCircle size={14} />
-                        Aceitar
+                        Doar para esta pessoa
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        loading={actionLoading === manifestation.id}
-                        onClick={() =>
-                          handleManifestationAction(
-                            manifestation.id,
-                            "RECUSADA"
-                          )
-                        }
-                      >
-                        <XCircle size={14} />
-                        Recusar
-                      </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -618,7 +693,7 @@ export default function AnnouncementDetailPage({
               Manifestar interesse
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              Envie uma mensagem para o doador sobre este item
+              Sua mensagem vai direto para o chat com o doador 💬
             </p>
             <textarea
               value={message}

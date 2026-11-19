@@ -46,6 +46,7 @@ const publicApiRoutes = [
   "/api/upload",
   "/api/contact",
   "/api/captcha",
+  "/api/locations",
 ]
 
 export async function proxy(request: NextRequest) {
