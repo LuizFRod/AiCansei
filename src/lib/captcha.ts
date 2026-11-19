@@ -1,9 +1,58 @@
-import { createHmac, timingSafeEqual } from "crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from "crypto";
 
-const SECRET = process.env.NEXTAUTH_SECRET || "aicansai-captcha-fallback";
+const RAW_SECRET = process.env.NEXTAUTH_SECRET;
+if (!RAW_SECRET || RAW_SECRET.length < 16) {
+  throw new Error("NEXTAUTH_SECRET é obrigatório e deve ter pelo menos 16 caracteres.");
+}
+const SECRET = createHash("sha256").update(RAW_SECRET).digest();
+
 const TTL_MS = 10 * 60 * 1000;
 
 type Challenge = { a: number; b: number; op: "+" | "-"; exp: number };
+
+const consumedTokens = new Set<string>();
+let lastSweep = Date.now();
+
+function sweepConsumed() {
+  if (Date.now() - lastSweep < TTL_MS) return;
+  lastSweep = Date.now();
+  consumedTokens.clear();
+}
+
+function encrypt(payload: object): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", SECRET, iv);
+  const enc = Buffer.concat([
+    cipher.update(JSON.stringify(payload), "utf8"),
+    cipher.final(),
+  ]);
+  const tag = cipher.getAuthTag();
+  return [
+    iv.toString("base64url"),
+    enc.toString("base64url"),
+    tag.toString("base64url"),
+  ].join(".");
+}
+
+function decrypt(token: string): Challenge | null {
+  try {
+    const [ivB, dataB, tagB] = token.split(".");
+    if (!ivB || !dataB || !tagB) return null;
+    const decipher = createDecipheriv(
+      "aes-256-gcm",
+      SECRET,
+      Buffer.from(ivB, "base64url")
+    );
+    decipher.setAuthTag(Buffer.from(tagB, "base64url"));
+    const dec = Buffer.concat([
+      decipher.update(Buffer.from(dataB, "base64url")),
+      decipher.final(),
+    ]);
+    return JSON.parse(dec.toString()) as Challenge;
+  } catch {
+    return null;
+  }
+}
 
 export function generateChallenge(): { question: string; token: string } {
   const a = 3 + Math.floor(Math.random() * 8);
@@ -17,12 +66,9 @@ export function generateChallenge(): { question: string; token: string } {
     exp: Date.now() + TTL_MS,
   };
 
-  const payload = Buffer.from(JSON.stringify(challenge)).toString("base64url");
-  const sig = createHmac("sha256", SECRET).update(payload).digest("base64url");
-
   return {
     question: `${challenge.a} ${challenge.op} ${challenge.b} = ?`,
-    token: `${payload}.${sig}`,
+    token: encrypt(challenge),
   };
 }
 
@@ -34,33 +80,26 @@ export function verifyChallenge(token: unknown, answer: unknown): boolean {
     return false;
   }
 
-  const dot = token.lastIndexOf(".");
-  if (dot <= 0) return false;
+  sweepConsumed();
 
-  const payload = token.slice(0, dot);
-  const sig = token.slice(dot + 1);
-  const expected = createHmac("sha256", SECRET)
-    .update(payload)
-    .digest("base64url");
-
-  const sigBuf = Buffer.from(sig);
-  const expectedBuf = Buffer.from(expected);
-  if (sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)) {
+  if (consumedTokens.has(token)) {
     return false;
   }
 
-  try {
-    const data = JSON.parse(
-      Buffer.from(payload, "base64url").toString()
-    ) as Challenge;
+  const data = decrypt(token);
+  if (!data) return false;
 
-    if (Date.now() > data.exp) return false;
+  if (Date.now() > data.exp) return false;
 
-    const result = data.op === "+" ? data.a + data.b : data.a - data.b;
-    return Number(answer) === result;
-  } catch {
-    return false;
-  }
+  const result = data.op === "+" ? data.a + data.b : data.a - data.b;
+  const given = Number(answer);
+
+  if (!Number.isFinite(given)) return false;
+
+  if (given !== result) return false;
+
+  consumedTokens.add(token);
+  return true;
 }
 
 export function verificationMode(): "turnstile" | "math" {

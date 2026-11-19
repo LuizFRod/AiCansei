@@ -11,6 +11,22 @@ function withSecurityHeaders(response: NextResponse) {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()"
   )
+  if (!response.headers.has("Content-Security-Policy")) {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://challenges.cloudflare.com",
+      "frame-src https://challenges.cloudflare.com",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ")
+    response.headers.set("Content-Security-Policy", csp)
+  }
   return response
 }
 
@@ -43,10 +59,17 @@ const adminRoutes = ["/admin"]
 // API routes that don't require authentication
 const publicApiRoutes = [
   "/api/auth",
-  "/api/upload",
   "/api/contact",
   "/api/captcha",
   "/api/locations",
+]
+
+// Endpoints sensíveis a flood (cadastro, contato, recuperação de senha)
+const strictLimitPaths = [
+  "/api/auth/register",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
+  "/api/contact",
 ]
 
 export async function proxy(request: NextRequest) {
@@ -55,6 +78,41 @@ export async function proxy(request: NextRequest) {
   const country = request.headers.get("x-vercel-ip-country")
   if (country && country !== "BR") {
     return blockedResponse(request)
+  }
+
+  const ip = clientIp(request)
+
+  // Limite geral para toda a API (GET incluso): 120 req/min por IP
+  if (
+    pathname.startsWith("/api/") &&
+    !rateLimit(`api:${ip}`, 120, 60_000)
+  ) {
+    return NextResponse.json(
+      { error: "Muitas requisições. Tente novamente em instantes." },
+      { status: 429 }
+    )
+  }
+
+  // Limite reforçado em endpoints públicos sensíveis: 10 req/min por IP
+  if (
+    strictLimitPaths.some((p) => pathname.startsWith(p)) &&
+    !rateLimit(`strict:${ip}`, 10, 60_000)
+  ) {
+    return NextResponse.json(
+      { error: "Muitas tentativas. Tente novamente em instantes." },
+      { status: 429 }
+    )
+  }
+
+  // Consultas externas (IBGE/ViaCEP) têm cache no servidor: 30 req/min
+  if (pathname.startsWith("/api/locations")) {
+    if (!rateLimit(`loc:${ip}`, 30, 60_000)) {
+      return NextResponse.json(
+        { error: "Muitas consultas. Aguarde um instante." },
+        { status: 429 }
+      )
+    }
+    return withSecurityHeaders(NextResponse.next())
   }
 
   // Allow public API routes

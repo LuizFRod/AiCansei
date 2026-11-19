@@ -3,30 +3,54 @@ import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 
-const loginAttempts = new Map<
-  string,
-  { count: number; lockedUntil: number }
->()
 const MAX_LOGIN_ATTEMPTS = 7
 const LOGIN_LOCK_MS = 5 * 60 * 1000
 
-function registerFailedLogin(email: string) {
-  if (loginAttempts.size > 5000) {
+const unknownEmailAttempts = new Map<
+  string,
+  { count: number; lockedUntil: number }
+>()
+
+function registerUnknownEmailFailure(emailKey: string) {
+  if (unknownEmailAttempts.size > 5000) {
     const now = Date.now()
-    for (const [key, value] of loginAttempts) {
-      if (value.lockedUntil < now) loginAttempts.delete(key)
+    for (const [key, value] of unknownEmailAttempts) {
+      if (value.lockedUntil < now && value.count === 0) {
+        unknownEmailAttempts.delete(key)
+      }
     }
   }
 
-  const key = email.toLowerCase()
-  const attempt = loginAttempts.get(key)
+  const attempt = unknownEmailAttempts.get(emailKey)
   const count = (attempt?.count ?? 0) + 1
 
   if (count >= MAX_LOGIN_ATTEMPTS) {
-    loginAttempts.set(key, { count: 0, lockedUntil: Date.now() + LOGIN_LOCK_MS })
+    unknownEmailAttempts.set(emailKey, {
+      count: 0,
+      lockedUntil: Date.now() + LOGIN_LOCK_MS,
+    })
   } else {
-    loginAttempts.set(key, { count, lockedUntil: 0 })
+    unknownEmailAttempts.set(emailKey, { count, lockedUntil: 0 })
   }
+}
+
+async function registerFailedLoginForUser(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { failedLogins: true },
+  })
+
+  if (!user) return
+
+  const failedLogins = user.failedLogins + 1
+
+  await prisma.user.update({
+    where: { id: userId },
+    data:
+      failedLogins >= MAX_LOGIN_ATTEMPTS
+        ? { failedLogins: 0, lockedUntil: new Date(Date.now() + LOGIN_LOCK_MS) }
+        : { failedLogins },
+  })
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -47,19 +71,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null
         }
 
-        const emailKey = String(credentials.email).toLowerCase()
-        const attempt = loginAttempts.get(emailKey)
-
-        if (attempt && attempt.lockedUntil > Date.now()) {
-          return null
-        }
+        const emailKey = String(credentials.email).trim().toLowerCase()
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string },
         })
 
+        if (
+          user?.lockedUntil &&
+          user.lockedUntil.getTime() > Date.now()
+        ) {
+          return null
+        }
+
+        const unknownAttempt = unknownEmailAttempts.get(emailKey)
+        if (!user && unknownAttempt && unknownAttempt.lockedUntil > Date.now()) {
+          return null
+        }
+
         if (!user || !user.password) {
-          registerFailedLogin(emailKey)
+          registerUnknownEmailFailure(emailKey)
           return null
         }
 
@@ -69,11 +100,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         )
 
         if (!isValid) {
-          registerFailedLogin(emailKey)
+          await registerFailedLoginForUser(user.id)
           return null
         }
 
-        loginAttempts.delete(emailKey)
+        if (user.failedLogins > 0) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { failedLogins: 0 },
+          })
+        }
+        unknownEmailAttempts.delete(emailKey)
 
         return {
           id: user.id,

@@ -49,6 +49,28 @@ export async function GET(
       );
     }
 
+    const isPrivileged =
+      !!session?.user &&
+      (session.user.id === announcement.donorId ||
+        session.user.role === "ADMIN");
+
+    // Anúncios não publicados só podem ser vistos pelo dono ou admin
+    if (
+      announcement.status !== "ATIVO" &&
+      announcement.status !== "DOADO" &&
+      !isPrivileged
+    ) {
+      return NextResponse.json(
+        { error: "Anúncio não encontrado." },
+        { status: 404 }
+      );
+    }
+
+    // Lista de interessados é visível apenas para o dono e admin
+    const safeAnnouncement = isPrivileged
+      ? announcement
+      : { ...announcement, manifestations: [] };
+
     // Check if current user favorited or manifested
     let isFavorited = false;
     let hasManifested = false;
@@ -74,7 +96,11 @@ export async function GET(
       hasManifested = !!manifest;
     }
 
-    return NextResponse.json({ ...announcement, isFavorited, hasManifested });
+    return NextResponse.json({
+      ...safeAnnouncement,
+      isFavorited,
+      hasManifested,
+    });
   } catch (error) {
     console.error("Error fetching announcement:", error);
     return NextResponse.json(
