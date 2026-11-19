@@ -6,10 +6,12 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-export async function uploadImage(file: File): Promise<string> {
-  const buffer = Buffer.from(await file.arrayBuffer());
+export async function uploadImage(
+  buffer: Buffer,
+  mimeType: string
+): Promise<string> {
   const base64 = buffer.toString("base64");
-  const dataURI = `data:${file.type};base64,${base64}`;
+  const dataURI = `data:${mimeType};base64,${base64}`;
 
   const result = await cloudinary.uploader.upload(dataURI, {
     folder: "aicansai",

@@ -57,6 +57,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 
   session: { strategy: "jwt" },
+  cookies: {
+    sessionToken: {
+      name:
+        process.env.NODE_ENV === "production"
+          ? "__Secure-aicansai.session-token"
+          : "aicansai.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+      },
+    },
+  },
   pages: {
     signIn: "/login",
   },
